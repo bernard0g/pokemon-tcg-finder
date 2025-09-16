@@ -1,41 +1,291 @@
 <!doctype html>
-<html lang="pt-BR">
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pokémon Card Finder</title>
-  <style>
-    body{font-family:system-ui,Arial,sans-serif;max-width:800px;margin:32px auto;padding:0 16px}
-    .card{display:flex;gap:16px;align-items:flex-start;border:1px solid #ddd;border-radius:12px;padding:12px;margin:12px 0}
-    img{width:120px;height:auto;border-radius:8px}
-    .muted{color:#666}
-    input{padding:10px;border:1px solid #ccc;border-radius:8px;width:200px}
-    button{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
-  </style>
-  <h1>Pokémon Card Finder</h1>
-  <p>Digite o formato <b>número/total</b> (ex.: <code>032/168</code>)</p>
-  <input id="inp" placeholder="032/168" />
-  <button id="btn">Buscar</button>
-  <div id="out"></div>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Pokémon Card Finder ⚡</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
+    <style>
+      .card-img{aspect-ratio:5/7;object-fit:contain;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02))}
+      .mini-img{width:48px;height:64px;object-fit:cover;border-radius:6px}
+      .drawer-enter{transform:translateX(100%)}
+      .drawer-enter-active{transform:translateX(0);transition:transform .25s ease}
+      .drawer-exit{transform:translateX(0)}
+      .drawer-exit-active{transform:translateX(100%);transition:transform .25s ease}
+      .backdrop{background:rgba(0,0,0,.5)}
+    </style>
+  </head>
+  <body class="bg-gradient-to-br from-purple-900 via-indigo-900 to-black min-h-screen text-white font-inter">
+    <header class="text-center py-10">
+      <h1 class="text-4xl md:text-6xl font-bold tracking-wide drop-shadow-lg">
+        Pokémon <span class="text-yellow-400">Card Finder</span> ⚡
+      </h1>
+      <p class="mt-4 text-gray-300">Busque pelo formato <code>número/total</code> (ex.: 032/168). Marque cartas na sua <span class="text-yellow-300">Lista de Procura</span> e veja detalhes.</p>
+    </header>
 
-  <script>
-    const $ = sel => document.querySelector(sel);
-    $('#btn').onclick = async () => {
-      const fraction = $('#inp').value.trim();
-      if (!fraction.includes('/')) { alert('Use o formato número/total, ex.: 032/168'); return; }
-      $('#out').innerHTML = 'Carregando...';
-      const res = await fetch(`/api/card?fraction=${encodeURIComponent(fraction)}`);
-      const json = await res.json();
-      if (!json.data || !json.data.length) { $('#out').innerHTML = 'Nada encontrado.'; return; }
-      $('#out').innerHTML = json.data.map(c => `
-        <div class="card">
-          <img src="${c.images?.small}" alt="${c.name}" />
-          <div>
-            <div><b>${c.name}</b></div>
-            <div class="muted">#${c.number}/${c.set.printedTotal ?? c.set.total} — ${c.set.name} (${c.set.id})</div>
-            ${c.tcgplayer ? `<div><a href="${c.tcgplayer}" target="_blank" rel="noreferrer">Ver preço (TCGplayer)</a></div>` : ''}
-          </div>
+    <main class="max-w-6xl mx-auto px-4 pb-28">
+      <!-- Busca -->
+      <section class="mb-8">
+        <div class="flex gap-2 justify-center">
+          <input id="inp" placeholder="032/168"
+            class="flex-1 px-4 py-3 rounded-xl border-2 border-indigo-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-black max-w-xl"/>
+          <button id="btn"
+            class="px-6 py-3 rounded-xl bg-yellow-400 text-black font-semibold hover:bg-yellow-300 transition">
+            Buscar
+          </button>
         </div>
-      `).join('');
-    };
-  </script>
+      </section>
+
+      <!-- Resultados -->
+      <section id="results" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></section>
+    </main>
+
+    <!-- Botão flutuante para abrir a Lista de Procura -->
+    <button id="open-drawer"
+      class="fixed right-5 bottom-5 z-30 rounded-full w-14 h-14 flex items-center justify-center bg-yellow-400 text-black shadow-xl hover:bg-yellow-300 transition"
+      title="Abrir Lista de Procura">
+      📋
+      <span id="badge-count"
+        class="absolute -top-1 -right-1 text-xs bg-red-600 text-white px-2 py-[2px] rounded-full hidden">0</span>
+    </button>
+
+    <!-- Drawer lateral -->
+    <div id="drawer-backdrop" class="fixed inset-0 z-40 hidden backdrop"></div>
+    <aside id="drawer"
+      class="fixed top-0 right-0 h-full w-[360px] max-w-[90%] z-50 bg-neutral-950/95 backdrop-blur-md border-l border-white/10 p-4 drawer-enter hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-bold">Lista de Procura 📌</h2>
+        <div class="flex gap-2">
+          <button id="export-seek" class="px-3 py-1 text-sm rounded bg-indigo-600 hover:bg-indigo-500">Export</button>
+          <button id="clear-seek" class="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-500">Limpar</button>
+          <button id="close-drawer" class="px-3 py-1 text-sm rounded bg-white/10 hover:bg-white/20">Fechar</button>
+        </div>
+      </div>
+      <div class="text-xs text-gray-400 mb-2">Importar JSON: <input id="import-file" type="file" accept=".json" class="ml-1"/></div>
+      <div id="seek-list" class="flex flex-col gap-3 overflow-auto h-[calc(100%-100px)] pr-1">
+        <!-- itens -->
+      </div>
+    </aside>
+
+    <!-- Modal de detalhes -->
+    <div id="modal-backdrop" class="fixed inset-0 z-40 hidden backdrop"></div>
+    <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-neutral-950/95 border border-white/10 rounded-2xl max-w-2xl w-full p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 id="modal-title" class="text-2xl font-bold">Detalhes</h3>
+          <button id="modal-close" class="px-3 py-1 rounded bg-white/10 hover:bg-white/20">Fechar</button>
+        </div>
+        <div id="modal-body" class="grid md:grid-cols-2 gap-4">
+          <!-- conteúdo -->
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /* ======== Storage ======== */
+      const SEEK_KEY = 'pcf_seek';
+      function loadSeek(){ try { return JSON.parse(localStorage.getItem(SEEK_KEY)||'[]'); } catch { return []; } }
+      function saveSeek(arr){ localStorage.setItem(SEEK_KEY, JSON.stringify(arr)); }
+
+      /* ======== Estado ======== */
+      const resultsEl = document.getElementById('results');
+      const drawer = document.getElementById('drawer');
+      const drawerBackdrop = document.getElementById('drawer-backdrop');
+      const seekEl = document.getElementById('seek-list');
+      const badge = document.getElementById('badge-count');
+
+      let seekList = loadSeek();
+      window.__pcf_cache__ = {};
+
+      /* ======== Helpers ======== */
+      const $ = s => document.querySelector(s);
+      const escapeHtml = s => (s+'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+
+      function updateBadge(){
+        if(seekList.length>0){
+          badge.textContent = String(seekList.length);
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      function findById(list,id){ return list.find(x=>x.id===id); }
+
+      function cardHtml(c){
+        window.__pcf_cache__[c.id] = c;
+        const isSeek = !!findById(seekList, c.id);
+        return `
+          <article class="bg-white/6 rounded-2xl p-4 shadow-lg hover:scale-[1.02] transform transition">
+            <img src="${c.images?.large}" alt="${escapeHtml(c.name)}" class="w-full rounded-xl mb-3 card-img"/>
+            <h3 class="text-lg font-bold">${escapeHtml(c.name)}</h3>
+            <p class="text-sm text-gray-300 mb-3">#${c.number}/${c.set.printedTotal ?? c.set.total} — ${escapeHtml(c.set.name)}</p>
+            <div class="flex gap-2">
+              <button data-seek="${c.id}" class="px-3 py-2 rounded-lg ${isSeek?'bg-yellow-400 text-black':'bg-white/10'} hover:bg-white/20">
+                ${isSeek ? '📌 Na Procura' : '📌 Procurar'}
+              </button>
+              <button data-det="${c.id}" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20">Detalhes</button>
+              ${c.tcgplayer ? `<a href="${c.tcgplayer}" target="_blank" class="px-3 py-2 rounded-lg bg-green-500 text-black hover:bg-green-400">Preço</a>`:''}
+            </div>
+          </article>
+        `;
+      }
+
+      function renderGrid(cards){
+        if(!cards?.length){
+          resultsEl.innerHTML = `<div class="col-span-full text-center text-gray-300">Nenhum resultado</div>`;
+          return;
+        }
+        resultsEl.innerHTML = cards.map(cardHtml).join('');
+        document.querySelectorAll('[data-seek]').forEach(b=>{
+          b.addEventListener('click',()=>{
+            const id=b.dataset.seek;
+            const card=window.__pcf_cache__[id];
+            toggleSeek(card);
+          });
+        });
+        document.querySelectorAll('[data-det]').forEach(b=>{
+          b.addEventListener('click',()=>{
+            const id=b.dataset.det;
+            openDetails(window.__pcf_cache__[id]);
+          });
+        });
+      }
+
+      function itemMiniHtml(c){
+        return `
+          <div class="flex items-center gap-3 p-2 rounded-md bg-white/5">
+            <img src="${c.images?.small}" class="mini-img" alt="${escapeHtml(c.name)}"/>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm">${escapeHtml(c.name)}</div>
+              <div class="text-xs text-gray-300">#${c.number}/${c.set.printedTotal ?? c.set.total} · ${escapeHtml(c.set.name)}</div>
+            </div>
+            <button data-remove="${c.id}" class="px-2 py-1 rounded bg-red-500 text-xs">Rem</button>
+          </div>
+        `;
+      }
+
+      function renderSeek(){
+        seekEl.innerHTML = seekList.length ? seekList.map(itemMiniHtml).join('') : '<div class="text-gray-400">Sem itens</div>';
+        document.querySelectorAll('[data-remove]').forEach(b=>{
+          b.addEventListener('click',()=>{
+            const id=b.dataset.remove;
+            seekList = seekList.filter(x=>x.id!==id);
+            saveSeek(seekList); renderSeek(); updateBadge(); refreshVisibleGridButtons();
+          });
+        });
+        updateBadge();
+      }
+
+      function toggleSeek(c){
+        if(findById(seekList,c.id)){
+          seekList = seekList.filter(x=>x.id!==c.id);
+        } else {
+          seekList.unshift(c);
+        }
+        saveSeek(seekList);
+        renderSeek();
+        refreshVisibleGridButtons();
+      }
+
+      function refreshVisibleGridButtons(){
+        const cards = Array.from(document.querySelectorAll('[data-seek]')).map(b=>window.__pcf_cache__[b.dataset.seek]).filter(Boolean);
+        if(cards.length) renderGrid(cards);
+      }
+
+      /* ======== Drawer ======== */
+      function openDrawer(){
+        drawer.classList.remove('hidden','drawer-exit','drawer-exit-active');
+        drawer.classList.add('drawer-enter');
+        requestAnimationFrame(()=>drawer.classList.add('drawer-enter-active'));
+        drawerBackdrop.classList.remove('hidden');
+      }
+      function closeDrawer(){
+        drawer.classList.remove('drawer-enter','drawer-enter-active');
+        drawer.classList.add('drawer-exit');
+        requestAnimationFrame(()=>{
+          drawer.classList.add('drawer-exit-active');
+          setTimeout(()=>{ drawer.classList.add('hidden'); drawer.classList.remove('drawer-exit','drawer-exit-active'); }, 250);
+        });
+        drawerBackdrop.classList.add('hidden');
+      }
+      document.getElementById('open-drawer').addEventListener('click',openDrawer);
+      document.getElementById('close-drawer').addEventListener('click',closeDrawer);
+      drawerBackdrop.addEventListener('click',closeDrawer);
+
+      document.getElementById('clear-seek').addEventListener('click',()=>{
+        if(!confirm('Limpar Lista de Procura?'))return;
+        seekList=[]; saveSeek(seekList); renderSeek(); updateBadge();
+      });
+      document.getElementById('export-seek').addEventListener('click',()=>{
+        const blob = new Blob([JSON.stringify({seek:seekList},null,2)],{type:'application/json'});
+        const url=URL.createObjectURL(blob); const a=document.createElement('a');
+        a.href=url; a.download='pcf-seek.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+      });
+      document.getElementById('import-file').addEventListener('change', async ev=>{
+        const f=ev.target.files?.[0]; if(!f)return;
+        try{
+          const txt=await f.text(); const j=JSON.parse(txt);
+          if(Array.isArray(j.seek)) seekList=j.seek;
+          saveSeek(seekList); renderSeek(); updateBadge(); alert('Import concluído');
+        }catch(e){ alert('Erro ao importar: '+e.message); }
+        finally{ ev.target.value=null; }
+      });
+
+      /* ======== Modal de Detalhes ======== */
+      const modal = document.getElementById('modal');
+      const modalBackdrop = document.getElementById('modal-backdrop');
+      const modalTitle = document.getElementById('modal-title');
+      const modalBody = document.getElementById('modal-body');
+      function openDetails(c){
+        modalTitle.textContent = c.name;
+        const flavor = c.flavorText ? `<p class="text-sm text-gray-300 italic leading-relaxed">“${escapeHtml(c.flavorText)}”</p>` : '';
+        const metaLeft = `
+          <img src="${c.images?.large}" alt="${escapeHtml(c.name)}" class="w-full rounded-xl card-img"/>
+        `;
+        const metaRight = `
+          <ul class="text-sm text-gray-200 space-y-1">
+            <li><b>Número:</b> ${c.number}/${c.set.printedTotal ?? c.set.total}</li>
+            <li><b>Set:</b> ${escapeHtml(c.set.name)} (${escapeHtml(c.set.series || '')})</li>
+            ${c.rarity ? `<li><b>Raridade:</b> ${escapeHtml(c.rarity)}</li>` : ''}
+            ${c.artist ? `<li><b>Artista:</b> ${escapeHtml(c.artist)}</li>` : ''}
+            ${c.types?.length ? `<li><b>Tipos:</b> ${c.types.join(', ')}</li>` : ''}
+            ${c.subtypes?.length ? `<li><b>Subtipos:</b> ${c.subtypes.join(', ')}</li>` : ''}
+            ${c.nationalPokedexNumbers?.length ? `<li><b>Dex#:</b> ${c.nationalPokedexNumbers.join(', ')}</li>` : ''}
+            ${c.set.releaseDate ? `<li><b>Release:</b> ${escapeHtml(c.set.releaseDate)}</li>` : ''}
+            ${c.tcgplayer ? `<li class="mt-2"><a href="${c.tcgplayer}" target="_blank" class="inline-block px-3 py-1 bg-green-500 text-black rounded-lg hover:bg-green-400">Ver preços</a></li>` : ''}
+          </ul>
+          ${flavor}
+        `;
+        modalBody.innerHTML = `<div>${metaLeft}</div><div class="space-y-3">${metaRight}</div>`;
+        modal.classList.remove('hidden'); modalBackdrop.classList.remove('hidden');
+      }
+      function closeDetails(){ modal.classList.add('hidden'); modalBackdrop.classList.add('hidden'); }
+      document.getElementById('modal-close').addEventListener('click',closeDetails);
+      modalBackdrop.addEventListener('click',closeDetails);
+
+      /* ======== Busca ======== */
+      document.getElementById('btn').addEventListener('click', async ()=>{
+        const fraction = document.getElementById('inp').value.trim();
+        if(!fraction.includes('/')) { alert('Formato inválido (use NNN/TTT)'); return; }
+        resultsEl.innerHTML = `<div class="col-span-full text-center animate-pulse">🔎 Buscando...</div>`;
+        try{
+          const res = await fetch(`/api/card?fraction=${encodeURIComponent(fraction)}`);
+          if(!res.ok){
+            const err = await res.json().catch(()=>({error:res.statusText}));
+            resultsEl.innerHTML = `<div class="col-span-full text-center text-red-400">Erro: ${err.error || res.statusText}</div>`;
+            return;
+          }
+          const json = await res.json();
+          renderGrid(json.data || []);
+        }catch(e){
+          resultsEl.innerHTML = `<div class="col-span-full text-center text-red-400">Erro: ${e.message}</div>`;
+        }
+      });
+
+      /* ======== Init ======== */
+      renderSeek(); updateBadge();
+    </script>
+  </body>
 </html>
