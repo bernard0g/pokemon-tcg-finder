@@ -25,6 +25,35 @@ function authHeaders() {
   return h;
 }
 
+// ========== resiliencia ==========
+const MAX_RETRIES = parseInt(process.env.POKEMON_TCG_MAX_RETRIES || '2', 10); // total de novas tentativas além da 1ª
+const BASE_TIMEOUT_MS = parseInt(process.env.POKEMON_TCG_TIMEOUT_MS || '20000', 10); // 20s por tentativa
+const SMALL_PAGE = parseInt(process.env.POKEMON_TCG_PAGE_SIZE || '24', 10); // menor pra responder mais rápido
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function requestWithRetry(url, opts = {}, { timeoutMs = BASE_TIMEOUT_MS, retries = MAX_RETRIES } = {}) {
+  let attempt = 0;
+  let lastErr;
+  while (attempt <= retries) {
+    try {
+      const res = await fetchWithTimeout(url, opts, timeoutMs);
+      if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text().catch(()=> '')}`);
+      return res;
+    } catch (e) {
+      lastErr = e;
+      const transient = (e.name === 'AbortError') || /Timeout/i.test(e.message) || /API error 5\d\d/.test(e.message);
+      if (!transient || attempt === retries) break;
+      // backoff exponencial simples: 500ms, 1000ms, 2000ms...
+      await sleep(500 * Math.pow(2, attempt));
+      attempt += 1;
+      // a cada tentativa, da um pouco mais de folga de timeout
+      timeoutMs = Math.min(timeoutMs + 5000, 30000);
+    }
+  }
+  throw lastErr;
+}
+
 // ===== busca por fração NNN/TTT =====
 // Aceita: "032/168", "32/168", "Mew ex (205/165)", "Charizard 4/102",
 //         "GG68/70", "SVP-001/30", etc.
@@ -57,14 +86,14 @@ function buildFractionQuery(input) {
   // (number:"GG68" OR number:"68") (set.total:70 OR set.printedTotal:70)
   return `(${numberCandidates}) (set.total:${total} OR set.printedTotal:${total})`;
 }
-export async function searchByFraction(fraction, { pageSize = 40 } = {}) {
+export async function searchByFraction(fraction, { pageSize = SMALL_PAGE } = {}) {
   const url = new URL(CARDS);
   url.searchParams.set('q', buildFractionQuery(fraction));
   url.searchParams.set('orderBy', '-set.releaseDate,number');
   url.searchParams.set('pageSize', String(pageSize));
+  url.searchParams.set('select', 'id,name,number,rarity,supertype,subtypes,types,artist,flavorText,nationalPokedexNumbers,set,images,tcgplayer');
 
-  const res = await fetchWithTimeout(url.toString(), { headers: authHeaders() });
-  if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text().catch(()=> '')}`);
+  const res = await requestWithRetry(url.toString(), { headers: authHeaders() });
   const json = await res.json();
   return (json.data ?? []).map(mapCard);
 }
@@ -83,7 +112,7 @@ export async function searchSetsByName(name, { pageSize = 25 } = {}) {
     url.searchParams.set('orderBy', '-releaseDate');
     url.searchParams.set('pageSize', String(pageSize));
 
-    const res = await fetchWithTimeout(url.toString(), { headers: authHeaders() });
+    const res = await requestWithRetry(url.toString(), { headers: authHeaders() });
     if (!res.ok) throw new Error(`SETS_${res.status}`);
     const json = await res.json();
     return {
@@ -104,7 +133,7 @@ export async function searchSetsByName(name, { pageSize = 25 } = {}) {
     url.searchParams.set('q', `set.name:"${esc}"*`);
     url.searchParams.set('orderBy', '-set.releaseDate');
     url.searchParams.set('pageSize', '250'); // pegar bastante e deduplicar
-    const res = await fetchWithTimeout(url.toString(), { headers: authHeaders() });
+    const res = await requestWithRetry(url.toString(), { headers: authHeaders() });
     if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text().catch(()=> '')}`);
     const json = await res.json();
 
@@ -149,7 +178,7 @@ export async function searchCardsBySet({ setId, rarities = [], page = 1, pageSiz
   url.searchParams.set('page', String(page));
   url.searchParams.set('pageSize', String(pageSize));
 
-  const res = await fetchWithTimeout(url.toString(), { headers: authHeaders() });
+  const res = await requestWithRetry(url.toString(), { headers: authHeaders() });
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text().catch(()=> '')}`);
   const json = await res.json();
   return {
@@ -164,7 +193,7 @@ export async function searchCardsBySet({ setId, rarities = [], page = 1, pageSiz
 // ===== rarities =====
 export async function getRarities() {
   const url = new URL('https://api.pokemontcg.io/v2/rarities');
-  const res = await fetchWithTimeout(url.toString(), { headers: authHeaders() });
+  const res = await requestWithRetry(url.toString(), { headers: authHeaders() });
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text().catch(()=> '')}`);
   const json = await res.json();
   // resposta vem tipo { data: ["Common","Uncommon", ...] }

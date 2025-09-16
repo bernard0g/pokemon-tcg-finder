@@ -23,10 +23,15 @@ app.get('/api/card', async (req, res) => {
     const data = await searchByFraction(fraction);
     res.json({ data });
   } catch (e) {
-    if (e.code === 'INVALID_FRACTION' || String(e.message||'').startsWith('INVALID_FRACTION')) {
-      return res.status(400).json({ error: e.message.replace('INVALID_FRACTION:','').trim() });
+    const msg = String(e.message || '');
+    if (e.code === 'INVALID_FRACTION' || msg.startsWith('INVALID_FRACTION')) {
+      return res.status(400).json({ error: msg.replace('INVALID_FRACTION:','').trim() });
     }
-    res.status(500).json({ error: e.message });
+    // se for timeout explícito, comunica claro
+    if (/Timeout/i.test(msg) || /AbortError/.test(msg)) {
+      return res.status(504).json({ error: 'A API oficial do Pokémon TCG demorou para responder. Tente novamente (já colocamos novas tentativas automáticas).' });
+    }
+    res.status(500).json({ error: msg });
   }
 });
 
