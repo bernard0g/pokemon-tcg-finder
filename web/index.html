@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <title>Pokémon Card Finder ⚡</title>
+    <title>Pokemon TCG Finder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
     <style>
@@ -39,12 +39,24 @@
       .btn-red:hover{ background:#ef4444; }
       .btn-ghost{ background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); }
       .btn-ghost:hover{ background:rgba(255,255,255,.12); }
+      /*raridade */
+      .chip {
+        display:inline-block;
+        margin-left:.5rem;
+        padding:.1rem .5rem;
+        border-radius:999px;
+        background:rgba(255,255,255,.10);
+        border:1px solid rgba(255,255,255,.18);
+        font-size:.75rem;
+        color:#fcd34d; /* amarelinho */
+      }
+
     </style>
   </head>
   <body class="bg-gradient-to-br from-purple-900 via-indigo-900 to-black min-h-screen text-white font-inter">
     <header class="text-center py-10">
       <h1 class="text-4xl md:text-6xl font-bold tracking-wide drop-shadow-lg">
-        Pokémon <span class="text-yellow-400">Card Finder</span> ⚡
+        Pokémon <span class="text-yellow-400">TCG Finder</span> ⚡
       </h1>
       <p class="mt-4 text-gray-300">Busque por <b>Número/Total</b> ou explore por <b>Coleção</b>, filtre por <b>Raridade</b> e salve na sua Lista de Procura.</p>
     </header>
@@ -205,7 +217,32 @@
 
       // ===== resultados/grid =====
       const resultsEl = $('#results'); window.__pcf_cache__ = {};
-      function buildLigaLink(c){ const label = `${c.name} (${c.number}/${c.set?.printedTotal ?? c.set?.total})`; const p = new URLSearchParams({ view: 'cards/search', card: label }); return `https://www.ligapokemon.com.br/?${p.toString()}`; }
+      function buildLigaLabel(c) {
+        const num = String(c.number || '');
+        const totalNum = c.set?.printedTotal ?? c.set?.total; // normalmente vem numérico
+        if (!num || !totalNum) return `${c.name}`;
+
+        // prefixo de letras/hífen + dígitos (GG68, TG01, SVP-001, etc.)
+        const m = num.match(/^([A-Za-z-]+)?(\d+)$/);
+        if (m) {
+          const prefix = m[1] || '';      // "GG" ou "SVP-" ou ""
+          const digits = m[2];            // "68" ou "001"
+          const padLen = digits.length;   // mantém zeros à esquerda
+          const totalPadded = String(totalNum).padStart(padLen, '0');
+          const totalLabel = prefix ? `${prefix}${totalPadded}` : totalPadded;
+          return `${c.name} (${num}/${totalLabel})`;
+        }
+
+        // fallback: sem prefixo reconhecido
+        return `${c.name} (${num}/${totalNum})`;
+      }
+
+      function buildLigaLink(c) {
+        const base = 'https://www.ligapokemon.com.br/';
+        const label = buildLigaLabel(c);
+        const params = new URLSearchParams({ view: 'cards/search', card: label });
+        return `${base}?${params.toString()}`;
+      }
       function closeAllPriceMenus(){ document.querySelectorAll('.menu').forEach(m=>m.classList.add('hidden')); }
       function openPriceMenu(buttonEl){ closeAllPriceMenus(); const menu=buttonEl.parentElement.querySelector('.menu'); if(menu) menu.classList.toggle('hidden'); }
       function cardHtml(c){
@@ -214,7 +251,11 @@
           <article class="bg-white/6 rounded-2xl p-4 shadow-lg hover:scale-[1.02] transform transition">
             <img src="${c.images?.large}" alt="${escapeHtml(c.name)}" class="w-full rounded-xl mb-3 card-img"/>
             <h3 class="text-lg font-bold">${escapeHtml(c.name)}</h3>
-            <p class="text-sm text-gray-300 mb-3">#${c.number}/${c.set.printedTotal ?? c.set.total} — ${escapeHtml(c.set.name)}</p>
+            <p class="text-sm text-gray-300 mb-3">
+              #${c.number}/${c.set.printedTotal ?? c.set.total}
+              — ${escapeHtml(c.set.name)}
+              ${c.rarity ? ' — ' + escapeHtml(c.rarity) : ''}
+            </p>
             <div class="flex gap-2 items-start">
               <button data-seek="${c.id}" class="px-3 py-2 rounded-lg ${isSeek?'bg-yellow-400 text-black':'bg-white/10'} hover:bg-white/20">
                 ${isSeek ? 'Na lista' : 'Listar'}
@@ -251,8 +292,9 @@
           <div class="space-y-3">
             <ul class="text-sm text-gray-200 space-y-1">
               <li><b>Número:</b> ${c.number}/${c.set.printedTotal ?? c.set.total}</li>
-              <li><b>Set:</b> ${escapeHtml(c.set.name)} (${escapeHtml(c.set.series || '')})</li>
-              ${c.rarity ? `<li><b>Raridade:</b> ${escapeHtml(c.rarity)}</li>` : ''}
+              <li><b>Set:</b> ${escapeHtml(c.set.name)} (${escapeHtml(c.set.series || '')})
+                ${c.rarity ? `<span class="chip" style="margin-left:.5rem">${escapeHtml(c.rarity)}</span>` : ''}
+              </li>
               ${c.artist ? `<li><b>Artista:</b> ${escapeHtml(c.artist)}</li>` : ''}
               ${c.types?.length ? `<li><b>Tipos:</b> ${c.types.join(', ')}</li>` : ''}
               ${c.subtypes?.length ? `<li><b>Subtipos:</b> ${c.subtypes.join(', ')}</li>` : ''}
