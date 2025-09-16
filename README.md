@@ -1,45 +1,41 @@
-# Pokémon Card Finder
+# 🎴 Pokémon TCG Finder
 
-Busca cartas do Pokémon TCG pelo formato **número/total** (ex.: `032/168`) usando a API v2 do Pokémon TCG.
+Um app web para **buscar cartas do Pokémon TCG** por número/coleção, visualizar detalhes, preços e montar sua própria **Want List** — tudo salvo direto no navegador (sem precisar de banco de dados).
 
-## Requisitos
-- Node.js 18+
-- (Opcional) Chave da API do Pokémon TCG: coloque em `POKEMON_TCG_API_KEY` no `.env` para aumentar a cota.
 
-## Instalação
+---
+
+## ✨ Funcionalidades
+
+- 🔎 **Busca por fração** (ex.: `032/168`, `GG68/GG70`, `SVP-001/30`)
+- 📚 **Busca por coleção** — lista sets e permite navegar entre as cartas (API atualmente com problemas)
+- ⭐ **Raridade** — dinamicamente via API oficial do TCG
+- 💰 **Preço** — abre links para TCGPlayer e Liga Pokémon Brasil
+- 📌 **Want List (Lista de Procura)**  
+  - Adicionar/remover cartas rapidamente  
+  - Exportar/Importar em JSON  
+  - Salvo automaticamente no navegador
+- 🖼️ **Detalhes da carta**  
+  - Imagem em alta qualidade  
+  - Nome, coleção, raridade, artista, texto e stats
+- 🎨 **UI estilizada** — Dark Mode, botões coloridos, animações suaves
+- 📱 **Responsivo** — funciona bem no desktop e mobile
+
+---
+
+## 🚀 Tecnologias
+
+- **Frontend**: HTML, CSS (Tailwind-like classes), JavaScript Vanilla
+- **Backend**: Node.js + Express
+- **API Externa**: [Pokémon TCG API v2](https://docs.pokemontcg.io/)
+
+---
+
+## 📦 Instalação
+
+Clone o repositório e instale as dependências:
+
 ```bash
-npm i
-cp .env.example .env   # edite e adicione sua chave, se tiver
-```
-
-## CLI
-```bash
-npm run cli -- 032/168
-```
-
-## API local + Front simples
-```bash
-npm run dev
-# Acesse: http://localhost:3000
-# Endpoint: GET /api/card?fraction=032/168
-```
-Abra `web/index.html` no navegador **depois** de iniciar o servidor (ele consome `/api/card`).
-
-## Estrutura
-```
-pokemon-card-finder/
-├─ package.json
-├─ .env.example
-├─ .gitignore
-├─ README.md
-├─ src/
-│  ├─ api.js
-│  ├─ cli.js
-│  └─ server.js
-└─ web/
-   └─ index.html
-```
-
-## Notas
-- A consulta usa `number` com e sem zeros à esquerda e compara `set.total` **ou** `set.printedTotal` com o total informado.
-- Alguns cards possuem números alfanuméricos (ex.: `TG01`), este projeto foca no padrão `NNN/TTT`.
+git clone https://github.com/bernard0g/pokemon-tcg-finder.git
+cd pokemon-tcg-finder
+npm install
