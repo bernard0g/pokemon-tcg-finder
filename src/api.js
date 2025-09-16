@@ -161,6 +161,16 @@ export async function searchCardsBySet({ setId, rarities = [], page = 1, pageSiz
   };
 }
 
+// ===== rarities =====
+export async function getRarities() {
+  const url = new URL('https://api.pokemontcg.io/v2/rarities');
+  const res = await fetchWithTimeout(url.toString(), { headers: authHeaders() });
+  if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text().catch(()=> '')}`);
+  const json = await res.json();
+  // resposta vem tipo { data: ["Common","Uncommon", ...] }
+  return Array.isArray(json.data) ? json.data : [];
+}
+
 // ===== mapeamento de card para o front =====
 function mapCard(c) {
   return {

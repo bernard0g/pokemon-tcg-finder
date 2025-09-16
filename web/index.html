@@ -196,7 +196,7 @@
             <div class="font-medium text-sm">${escapeHtml(c.name)}</div>
             <div class="text-xs text-gray-300">#${c.number}/${c.set.printedTotal ?? c.set.total} · ${escapeHtml(c.set.name)}</div>
           </div>
-          <button data-remove="${c.id}" class="px-2 py-1 rounded bg-red-500 text-xs">Rem</button>
+          <button data-remove="${c.id}" class="px-2 py-1 rounded bg-red-500 text-xs">X</button>
         </div>`; }
       function renderSeek(){
         seekEl.innerHTML = seekList.length ? seekList.map(itemMiniHtml).join('') : '<div class="text-gray-400">Sem itens</div>';
@@ -254,7 +254,7 @@
             <p class="text-sm text-gray-300 mb-3">
               #${c.number}/${c.set.printedTotal ?? c.set.total}
               — ${escapeHtml(c.set.name)}
-              ${c.rarity ? ' — ' + escapeHtml(c.rarity) : ''}
+              ${c.rarity ? ` — ${escapeHtml(c.rarity)}` : ''}
             </p>
             <div class="flex gap-2 items-start">
               <button data-seek="${c.id}" class="px-3 py-2 rounded-lg ${isSeek?'bg-yellow-400 text-black':'bg-white/10'} hover:bg-white/20">
@@ -369,9 +369,6 @@
 
 
       // ===== busca por Coleção + filtros =====
-      const RARITIES = [
-        'Common','Uncommon','Rare','Rare Holo','Ultra Rare','Secret Rare','Rare Holo EX','Rare Holo GX','Rare Holo V','Amazing Rare','Trainer Gallery','Promo'
-      ];
       const setQ = $('#set-q'), setsOut = $('#sets-out'), pickedBox = $('#set-picked'), pickedInfo = $('#set-picked-info');
       const rarityBox = $('#rarity-box'), btnPrev = $('#page-prev'), btnNext = $('#page-next'), pageInfo = $('#page-info'), btnReload = $('#reload-cards'), btnClearPicked = $('#clear-picked');
 
@@ -379,14 +376,31 @@
       let currentPage = 1;
       let lastTotalCount = 0;
 
-      function renderRarityFilters() {
-        rarityBox.innerHTML = RARITIES.map(r => `
+      async function fetchRarities() {
+        const fallback = [
+          'Common','Uncommon','Rare','Rare Holo','Ultra Rare','Secret Rare',
+          'Rare Holo EX','Rare Holo GX','Rare Holo V','Amazing Rare',
+          'Trainer Gallery','Promo','Illustration Rare','Special Illustration Rare'
+        ];
+        try {
+          const r = await getJSON('/api/rarities');
+          const arr = Array.isArray(r.data) ? r.data : [];
+          return arr.length ? arr : fallback;
+        } catch {
+          return fallback;
+        }
+      }
+
+      async function renderRarityFilters() {
+        const list = await fetchRarities();
+        rarityBox.innerHTML = list.map(r => `
           <label class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 cursor-pointer">
             <input type="checkbox" value="${r}" class="rarity-check accent-yellow-400">
             <span class="text-sm">${r}</span>
           </label>
         `).join('');
       }
+
       function getSelectedRarities() {
         return Array.from(document.querySelectorAll('.rarity-check:checked')).map(i => i.value);
       }

@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { searchByFraction, searchSetsByName, searchCardsBySet } from './api.js';
+import { searchByFraction, searchSetsByName, searchCardsBySet, getRarities } from './api.js';
 
 const app = express();
 
@@ -37,6 +37,17 @@ app.get('/api/sets', async (req, res) => {
     if (!q) return res.status(400).json({ error: 'Use ?q=nome-da-colecao' });
     const out = await searchSetsByName(q);
     res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===== busca raridade =====
+
+app.get('/api/rarities', async (_req, res) => {
+  try {
+    const list = await getRarities();
+    res.json({ data: list });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
