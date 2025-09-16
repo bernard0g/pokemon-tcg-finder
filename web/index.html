@@ -293,14 +293,38 @@
       // estado inicial
       activate('fraction');
 
+      (async () => {
+        try {
+          const r = await fetch('/api/sets?q=ping', { method: 'GET' });
+          if (!r.ok) throw new Error();
+        } catch {
+          // esconde a aba e a view de coleção
+          document.getElementById('tab-set').parentElement.removeChild(document.getElementById('tab-set'));
+          document.getElementById('view-set').classList.add('hidden');
+        }
+      })();
+
       // ===== busca por Número/Total =====
-      $('#btn').addEventListener('click', async ()=>{
-        const fraction = $('#inp').value.trim();
-        if(!fraction.includes('/')) { alert('Formato inválido (use NNN/TTT)'); return; }
+      document.getElementById('btn').addEventListener('click', async ()=>{
+        const raw = document.getElementById('inp').value.trim();
+
+        // extrai a primeira fração válida: [letras-]*dígitos / [letras-]*dígitos
+        const m = raw.match(/([A-Za-z-]*\d+)\s*\/\s*([A-Za-z-]*\d+)/i);
+        if (!m) {
+          alert('Use o formato NNN/TTT (ex.: 032/168, Mew ex (205/165), GG68/70)');
+          return;
+        }
+        const fractionOnly = `${m[1]}/${m[2]}`;   // envia só a fração, remove o resto
+
         resultsEl.innerHTML = `<div class="col-span-full text-center animate-pulse">🔎 Buscando...</div>`;
-        try{ const json = await getJSON(`/api/card?fraction=${encodeURIComponent(fraction)}`); renderGrid(json.data || []); }
-        catch(e){ resultsEl.innerHTML = `<div class="col-span-full text-center text-red-400">Erro: ${e.message}</div>`; }
+        try {
+          const json = await getJSON(`/api/card?fraction=${encodeURIComponent(fractionOnly)}`);
+          renderGrid(json.data || []);
+        } catch (e) {
+          resultsEl.innerHTML = `<div class="col-span-full text-center text-red-400">Erro: ${e.message}</div>`;
+        }
       });
+
 
       // ===== busca por Coleção + filtros =====
       const RARITIES = [

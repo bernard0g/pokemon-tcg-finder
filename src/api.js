@@ -26,21 +26,36 @@ function authHeaders() {
 }
 
 // ===== busca por fração NNN/TTT =====
+// Aceita: "032/168", "32/168", "Mew ex (205/165)", "Charizard 4/102",
+//         "GG68/70", "SVP-001/30", etc.
 function buildFractionQuery(input) {
-  // Aceita: "032/168", "32/168", "Mew ex (205/165)", "Charizard 4/102", etc.
-  // Extrai a primeira ocorrência de NNN/TTT
-  const m = String(input).match(/(\d+)\s*\/\s*(\d+)/);
+  const str = String(input || '');
+
+  // pega a PRIMEIRA ocorrência tipo [letras/hífen]*dígitos / [letras/hífen]*dígitos
+  const m = str.match(/([A-Za-z-]*\d+)\s*\/\s*([A-Za-z-]*\d+)/i);
   if (!m) {
-    // usar um prefixo para o server devolver 400 amigável
-    const err = new Error('INVALID_FRACTION: informe no formato NNN/TTT (ex.: 032/168 ou Mew ex (205/165))');
+    const err = new Error('INVALID_FRACTION: use NNN/TTT (ex.: 032/168 ou Mew ex (205/165) ou GG68/70)');
     err.code = 'INVALID_FRACTION';
     throw err;
   }
-  const numRaw = m[1];                  // "032" ou "205"
-  const numberNoZero = String(parseInt(numRaw, 10)); // "32" ou "205"
-  const total = parseInt(m[2], 10);     // 168
-  // Query robusta: aceita number com/sem zero e total impresso ou total
-  return `(${[`number:"${numRaw}"`, `number:"${numberNoZero}"`].join(' OR ')}) (set.total:${total} OR set.printedTotal:${total})`;
+
+  const numberRaw = m[1];               // ex.: "032" | "GG68" | "SVP-001"
+  const totalRaw  = m[2];               // ex.: "168" | "GG70" | "30"
+
+  // candidatos para 'number': o texto bruto e a versão "só dígitos" sem zeros à esquerda
+  const numberDigits = (numberRaw.match(/\d+/) || [''])[0];
+  const numberNoZero = numberDigits ? String(parseInt(numberDigits, 10)) : null;
+
+  // total do set SEM letras (impresso é sempre número)
+  const totalDigits = (totalRaw.match(/\d+/) || [''])[0];
+  const total = parseInt(totalDigits, 10);
+
+  const numberCandidates = [numberRaw, numberNoZero].filter(Boolean)
+    .map(s => `number:"${s}"`).join(' OR ');
+
+  // Query:
+  // (number:"GG68" OR number:"68") (set.total:70 OR set.printedTotal:70)
+  return `(${numberCandidates}) (set.total:${total} OR set.printedTotal:${total})`;
 }
 export async function searchByFraction(fraction, { pageSize = 40 } = {}) {
   const url = new URL(CARDS);
