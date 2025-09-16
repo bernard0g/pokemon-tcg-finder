@@ -109,11 +109,10 @@
 
       // Monta link da LigaPokémon (busca por nome + número + set)
       function buildLigaLink(c){
-        const q = [c.name, c.number, c.set?.name].filter(Boolean).join(' ');
-        // A busca da Liga funciona com o parâmetro 'card' na view de busca
-        // (ex.: ?view=cards/search&card=charizard 4 base set)
+        // Formato: Nome (Número/Total)
+        const label = `${c.name} (${c.number}/${c.set?.printedTotal ?? c.set?.total})`;
         const base = 'https://www.ligapokemon.com.br/';
-        const params = new URLSearchParams({ view: 'cards/search', card: q });
+        const params = new URLSearchParams({ view: 'cards/search', card: label });
         return `${base}?${params.toString()}`;
       }
 
