@@ -8,14 +8,24 @@
     <link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
     <style>
       .card-img{aspect-ratio:5/7;object-fit:contain;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02))}
+      .card { position: relative; overflow: visible; }
+      .card.menu-open { z-index: 1000; }
       .mini-img{width:48px;height:64px;object-fit:cover;border-radius:6px}
       .drawer-enter{transform:translateX(100%)}
       .drawer-enter-active{transform:translateX(0);transition:transform .25s ease}
       .drawer-exit{transform:translateX(0)}
       .drawer-exit-active{transform:translateX(100%);transition:transform .25s ease}
       .backdrop{background:rgba(0,0,0,.5)}
-      .menu { position:absolute; top:100%; left:0; min-width:180px; z-index:10 }
+      .menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 190px;
+        z-index: 1001;
+        display: none;           /* escondido por padrão */
+      }
       .menu-btn { position:relative }
+      .menu--open { display: block; }
       .tab-btn{border-bottom-width:2px}
       .tab-active{border-color:#facc15;color:#facc15}
       /* wrapper para input file “clicavel” 100% */
@@ -182,6 +192,33 @@
       const escapeHtml = s => (s+'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
       async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
+      
+      // ==== WANT LIST helpers (toggle) ====
+      function isInSeek(id){ return seekList.some(x => x.id === id); }
+
+      function toggleSeek(card){
+        if (isInSeek(card.id)) {
+          seekList = seekList.filter(x => x.id !== card.id);
+        } else {
+          seekList = [card, ...seekList];
+        }
+        saveSeek();
+        renderSeek();           // já atualiza drawer + badge
+        refreshVisibleGridButtons(); // atualiza os botões visíveis no grid
+      }
+
+      function refreshVisibleGridButtons(){
+        document.querySelectorAll('[data-seek]').forEach(b=>{
+          const inList = isInSeek(b.dataset.seek);
+          // rótulo
+          b.textContent = inList ? 'Na lista' : 'Listar';
+          // estilos
+          b.classList.toggle('bg-yellow-400', inList);
+          b.classList.toggle('text-black', inList);
+          b.classList.toggle('bg-white/10', !inList);
+        });
+      }
+
       // ===== lista de procura (localStorage) =====
       const KEY = 'pcf_seek';
       let seekList = JSON.parse(localStorage.getItem(KEY) || '[]');
@@ -243,12 +280,50 @@
         const params = new URLSearchParams({ view: 'cards/search', card: label });
         return `${base}?${params.toString()}`;
       }
-      function closeAllPriceMenus(){ document.querySelectorAll('.menu').forEach(m=>m.classList.add('hidden')); }
-      function openPriceMenu(buttonEl){ closeAllPriceMenus(); const menu=buttonEl.parentElement.querySelector('.menu'); if(menu) menu.classList.toggle('hidden'); }
+      function closeAllPriceMenus() {
+        document.querySelectorAll('.menu').forEach(m => {
+          m.classList.remove('menu--open');
+          m.classList.add('hidden');
+        });
+        document.querySelectorAll('.card.menu-open').forEach(c => c.classList.remove('menu-open'));
+      }
+
+      function togglePriceMenu(buttonEl) {
+        const card = buttonEl.closest('.card');
+        const menu = card.querySelector('.menu');
+        const isOpen = menu.classList.contains('menu--open');
+
+        // fecha tudo antes
+        closeAllPriceMenus();
+
+        // se já estava aberto, agora fecha (toggle)
+        if (isOpen) return;
+
+        // abre o atual
+        card.classList.add('menu-open');
+        menu.classList.remove('hidden');
+        menu.classList.add('menu--open');
+      }
+
+      // ---- reanexa listeners SEM duplicar
+      function wirePriceMenus(scope=document) {
+        scope.querySelectorAll('[data-price]').forEach(b => {
+          b.onclick = (e) => { e.stopPropagation(); togglePriceMenu(b); };
+        });
+        scope.querySelectorAll('.menu').forEach(m => {
+          m.onclick = (e) => e.stopPropagation(); // clicar dentro não fecha
+        });
+      }
+
+      // listener global único para fechar ao clicar fora (só adiciona uma vez)
+      if (!window.__priceOutsideBound) {
+        document.addEventListener('click', closeAllPriceMenus);
+        window.__priceOutsideBound = true;
+      }
       function cardHtml(c){
         window.__pcf_cache__[c.id]=c; const isSeek=!!findById(seekList,c.id); const hasTcg=!!c.tcgplayer;
         return `
-          <article class="bg-white/6 rounded-2xl p-4 shadow-lg hover:scale-[1.02] transform transition">
+          <article class="card bg-white/6 rounded-2xl p-4 shadow-lg hover:scale-[1.02] transform transition">
             <img src="${c.images?.large}" alt="${escapeHtml(c.name)}" class="w-full rounded-xl mb-3 card-img"/>
             <h3 class="text-lg font-bold">${escapeHtml(c.name)}</h3>
             <p class="text-sm text-gray-300 mb-3">
@@ -273,14 +348,44 @@
           </article>`;
       }
       function renderGrid(cards){
-        if(!cards?.length){ resultsEl.innerHTML = `<div class="col-span-full text-center text-gray-300">Nenhum resultado</div>`; return; }
+        if(!cards?.length){
+          resultsEl.innerHTML = `<div class="col-span-full text-center text-gray-300">Nenhum resultado</div>`;
+          return;
+        }
+
         resultsEl.innerHTML = cards.map(cardHtml).join('');
-        document.querySelectorAll('[data-seek]').forEach(b=>b.addEventListener('click',()=>{ const id=b.dataset.seek; const card=window.__pcf_cache__[id]; if(findById(seekList,card.id)){ seekList=seekList.filter(x=>x.id!==card.id);} else { seekList=[card, ...seekList]; } saveSeek(); renderSeek(); refreshVisibleGridButtons(); }));
-        document.querySelectorAll('[data-det]').forEach(b=>b.addEventListener('click',()=> openDetails(window.__pcf_cache__[b.dataset.det]) ));
-        document.querySelectorAll('[data-price]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); openPriceMenu(b); }));
-        document.addEventListener('click', closeAllPriceMenus, { once:true });
+
+        // 🔽 🔽 aqui logo após preencher o grid
+        wirePriceMenus(resultsEl);
+
+        resultsEl.querySelectorAll('[data-seek]').forEach(b=>{
+          b.onclick = () => {
+            const card = window.__pcf_cache__[b.dataset.seek];
+            if (!card) return;
+            toggleSeek(card);
+          };
+        });
+
+        resultsEl.querySelectorAll('[data-det]').forEach(b=>{
+          b.onclick = () => openDetails(window.__pcf_cache__[b.dataset.det]);
+        });
+
+        refreshVisibleGridButtons();
+
+        // seus outros event listeners
+        document.querySelectorAll('[data-seek]').forEach(b =>
+          b.addEventListener('click', () => {
+            const id = b.dataset.seek;
+            const card = window.__pcf_cache__[id];
+            if(findById(seekList, card)) return;
+            addToSeekList(card);
+          })
+        );
+
+        document.querySelectorAll('[data-det]').forEach(b =>
+          b.addEventListener('click', () => openDetails(window.__pcf_cache__[b.dataset.det]))
+        );
       }
-      function refreshVisibleGridButtons(){ const cards = Array.from(document.querySelectorAll('[data-seek]')).map(b=>window.__pcf_cache__[b.dataset.seek]).filter(Boolean); if(cards.length) renderGrid(cards); }
 
       // ===== modal detalhes =====
       const modal=$('#modal'), modalBackdrop=$('#modal-backdrop'), modalTitle=$('#modal-title'), modalBody=$('#modal-body');
