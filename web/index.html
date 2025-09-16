@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pokémon Card Finder</title>
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;max-width:800px;margin:32px auto;padding:0 16px}
+    .card{display:flex;gap:16px;align-items:flex-start;border:1px solid #ddd;border-radius:12px;padding:12px;margin:12px 0}
+    img{width:120px;height:auto;border-radius:8px}
+    .muted{color:#666}
+    input{padding:10px;border:1px solid #ccc;border-radius:8px;width:200px}
+    button{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
+  </style>
+  <h1>Pokémon Card Finder</h1>
+  <p>Digite o formato <b>número/total</b> (ex.: <code>032/168</code>)</p>
+  <input id="inp" placeholder="032/168" />
+  <button id="btn">Buscar</button>
+  <div id="out"></div>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    $('#btn').onclick = async () => {
+      const fraction = $('#inp').value.trim();
+      if (!fraction.includes('/')) { alert('Use o formato número/total, ex.: 032/168'); return; }
+      $('#out').innerHTML = 'Carregando...';
+      const res = await fetch(`/api/card?fraction=${encodeURIComponent(fraction)}`);
+      const json = await res.json();
+      if (!json.data || !json.data.length) { $('#out').innerHTML = 'Nada encontrado.'; return; }
+      $('#out').innerHTML = json.data.map(c => `
+        <div class="card">
+          <img src="${c.images?.small}" alt="${c.name}" />
+          <div>
+            <div><b>${c.name}</b></div>
+            <div class="muted">#${c.number}/${c.set.printedTotal ?? c.set.total} — ${c.set.name} (${c.set.id})</div>
+            ${c.tcgplayer ? `<div><a href="${c.tcgplayer}" target="_blank" rel="noreferrer">Ver preço (TCGplayer)</a></div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    };
+  </script>
+</html>
