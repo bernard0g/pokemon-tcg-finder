@@ -254,7 +254,7 @@
             <p class="text-sm text-gray-300 mb-3">
               #${c.number}/${c.set.printedTotal ?? c.set.total}
               — ${escapeHtml(c.set.name)}
-              ${c.rarity ? `<span class="chip">${escapeHtml(c.rarity)}</span>` : ''}
+              ${c.rarity ? ` — ${escapeHtml(c.rarity)}` : ''}
             </p>
             <div class="flex gap-2 items-start">
               <button data-seek="${c.id}" class="px-3 py-2 rounded-lg ${isSeek?'bg-yellow-400 text-black':'bg-white/10'} hover:bg-white/20">
