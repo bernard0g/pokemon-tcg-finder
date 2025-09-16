@@ -65,7 +65,14 @@
           <button id="close-drawer" class="px-3 py-1 text-sm rounded bg-white/10 hover:bg-white/20">Fechar</button>
         </div>
       </div>
-      <div class="text-xs text-gray-400 mb-2">Importar JSON: <input id="import-file" type="file" accept=".json" class="ml-1"/></div>
+    <div class="mb-3">
+      <label for="import-file" 
+        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm cursor-pointer">
+        📂 Importar JSON
+      </label>
+      <input id="import-file" type="file" accept=".json" class="hidden"/>
+      <span id="import-filename" class="ml-2 text-xs text-gray-400">Nenhum arquivo</span>
+    </div>
       <div id="seek-list" class="flex flex-col gap-3 overflow-auto h-[calc(100%-100px)] pr-1"></div>
     </aside>
 
