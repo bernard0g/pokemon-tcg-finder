@@ -14,9 +14,31 @@
       .drawer-exit{transform:translateX(0)}
       .drawer-exit-active{transform:translateX(100%);transition:transform .25s ease}
       .backdrop{background:rgba(0,0,0,.5)}
-      /* menu de preço */
       .menu { position:absolute; top:100%; left:0; min-width:180px; z-index:10 }
       .menu-btn { position:relative }
+      .tab-btn{border-bottom-width:2px}
+      .tab-active{border-color:#facc15;color:#facc15}
+      /* wrapper para input file “clicavel” 100% */
+      .pill-tabs { display:inline-flex; gap:.5rem; padding:.25rem; background:rgba(255,255,255,.06); border-radius:999px; border:1px solid rgba(255,255,255,.12); }
+      .pill { padding:.5rem 1rem; border-radius:999px; font-weight:600; color:#e5e7eb; }
+      .pill[aria-selected="true"] { background:linear-gradient(90deg,#fde047,#facc15); color:#111827; }
+      .search-card { 
+        background:linear-gradient(135deg, rgba(99,102,241,.25), rgba(124,58,237,.25));
+        border:1px solid rgba(255,255,255,.12);
+        box-shadow:0 10px 30px rgba(0,0,0,.25);
+      }
+      /* input file “invisível” apenas sobre o botão */
+      .file-wrap { position: relative; display: inline-block; }
+      .file-wrap input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+
+      /* botões padronizados (fica mais consistente) */
+      .btn{ display:inline-flex; align-items:center; gap:.5rem; padding:.5rem .9rem; border-radius:.75rem; font-weight:600; }
+      .btn-indigo{ background:#4f46e5; }
+      .btn-indigo:hover{ background:#6366f1; }
+      .btn-red{ background:#dc2626; }
+      .btn-red:hover{ background:#ef4444; }
+      .btn-ghost{ background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); }
+      .btn-ghost:hover{ background:rgba(255,255,255,.12); }
     </style>
   </head>
   <body class="bg-gradient-to-br from-purple-900 via-indigo-900 to-black min-h-screen text-white font-inter">
@@ -24,24 +46,82 @@
       <h1 class="text-4xl md:text-6xl font-bold tracking-wide drop-shadow-lg">
         Pokémon <span class="text-yellow-400">Card Finder</span> ⚡
       </h1>
-      <p class="mt-4 text-gray-300">Busque pelo formato <code>número/total</code> (ex.: 032/168). Marque cartas na sua <span class="text-yellow-300">Lista de Procura</span> e veja detalhes.</p>
+      <p class="mt-4 text-gray-300">Busque por <b>Número/Total</b> ou explore por <b>Coleção</b>, filtre por <b>Raridade</b> e salve na sua Lista de Procura.</p>
     </header>
 
-    <main class="max-w-6xl mx-auto px-4 pb-28">
-      <!-- Busca -->
-      <section class="mb-8">
-        <div class="flex gap-2 justify-center">
-          <input id="inp" placeholder="032/168"
-            class="flex-1 px-4 py-3 rounded-xl border-2 border-indigo-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-black max-w-xl"/>
-          <button id="btn"
-            class="px-6 py-3 rounded-xl bg-yellow-400 text-black font-semibold hover:bg-yellow-300 transition">
-            Buscar
-          </button>
+    <main class="max-w-7xl mx-auto px-4 pb-28">
+      <!-- Tabs -->
+      <div class="flex gap-4 justify-center mb-6">
+        <div class="flex justify-center mb-6">
+          <div class="pill-tabs">
+            <button id="tab-fraction" class="pill" aria-selected="true">Número/Total</button>
+            <button id="tab-set" class="pill" aria-selected="false">Coleção</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FRACTION SEARCH -->
+      <section id="view-fraction" class="mb-8">
+        <div class="max-w-3xl mx-auto p-5 rounded-2xl search-card">
+          <label for="inp" class="block text-sm mb-2 text-yellow-200/90">Buscar por Número/Total</label>
+          <div class="flex gap-3">
+            <input id="inp" placeholder="032/168"
+              class="flex-1 px-4 py-3 rounded-xl border-2 border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-black"/>
+            <button id="btn"
+              class="px-6 py-3 rounded-xl bg-yellow-400 text-black font-semibold hover:bg-yellow-300 transition">
+              Buscar
+            </button>
+          </div>
+          <p class="mt-2 text-xs text-gray-200/80">Dica: “Mew ex (205/165)” abre a busca direta na LigaPokémon pelo menu de preços.</p>
         </div>
       </section>
 
-      <!-- Resultados -->
-      <section id="results" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></section>
+      <!-- SET SEARCH + FILTERS -->
+      <section id="view-set" class="mb-8 hidden">
+        <div class="flex flex-col gap-3 items-center">
+          <div class="w-full max-w-4xl p-5 rounded-2xl search-card">
+            <label for="set-q" class="block text-sm mb-2 text-yellow-200/90">Buscar por Coleção (Set)</label>
+            <div class="flex gap-3">
+              <input id="set-q" placeholder="Ex.: Scarlet & Violet—151"
+                class="flex-1 px-4 py-3 rounded-xl border-2 border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-black"/>
+              <button id="set-search" class="px-5 py-3 rounded-xl bg-yellow-400 text-black font-semibold hover:bg-yellow-300">
+                Procurar
+              </button>
+            </div>
+          </div>
+          <!-- resultados de sets -->
+          <div id="sets-out" class="w-full max-w-5xl grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+          <!-- set selecionado -->
+          <div id="set-picked" class="w-full max-w-5xl hidden">
+            <div class="bg-white/5 rounded-xl p-4 border border-white/10">
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div id="set-picked-info" class="text-sm text-gray-200"></div>
+                <div class="flex items-center gap-2">
+                  <button id="clear-picked" class="px-3 py-2 rounded bg-white/10 hover:bg-white/20 text-sm">Trocar Coleção</button>
+                  <button id="reload-cards" class="px-3 py-2 rounded bg-yellow-400 text-black text-sm hover:bg-yellow-300">Recarregar</button>
+                </div>
+              </div>
+
+              <!-- filtros de raridade -->
+              <div class="mt-3">
+                <div class="text-sm mb-2">Raridade:</div>
+                <div id="rarity-box" class="flex flex-wrap gap-2"></div>
+              </div>
+
+              <!-- paginação -->
+              <div class="mt-3 flex items-center gap-2">
+                <button id="page-prev" class="px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-sm">◀ Anterior</button>
+                <span id="page-info" class="text-sm text-gray-300">Página 1</span>
+                <button id="page-next" class="px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-sm">Próxima ▶</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Resultados (compartilhado) -->
+      <section id="results" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></section>
     </main>
 
     <!-- Botão flutuante da Lista de Procura -->
@@ -59,20 +139,16 @@
       class="fixed top-0 right-0 h-full w-[360px] max-w-[90%] z-50 bg-neutral-950/95 backdrop-blur-md border-l border-white/10 p-4 drawer-enter hidden">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-xl font-bold">Lista de Procura 📌</h2>
-        <div class="flex gap-2">
-          <button id="export-seek" class="px-3 py-1 text-sm rounded bg-indigo-600 hover:bg-indigo-500">Export</button>
-          <button id="clear-seek" class="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-500">Limpar</button>
-          <button id="close-drawer" class="px-3 py-1 text-sm rounded bg-white/10 hover:bg-white/20">Fechar</button>
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="file-wrap">
+            <button class="btn btn-indigo">📂 Importar</button>
+            <input id="import-file" type="file" accept=".json" />
+          </span>
+          <button id="export-seek" class="btn btn-indigo">Export</button>
+          <button id="clear-seek"  class="btn btn-red">Limpar</button>
+          <button id="close-drawer" class="btn btn-ghost">Fechar</button>
         </div>
       </div>
-    <div class="mb-3">
-      <label for="import-file" 
-        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm cursor-pointer">
-        📂 Importar JSON
-      </label>
-      <input id="import-file" type="file" accept=".json" class="hidden"/>
-      <span id="import-filename" class="ml-2 text-xs text-gray-400">Nenhum arquivo</span>
-    </div>
       <div id="seek-list" class="flex flex-col gap-3 overflow-auto h-[calc(100%-100px)] pr-1"></div>
     </aside>
 
@@ -89,45 +165,51 @@
     </div>
 
     <script>
-      /* ======== Storage ======== */
-      const SEEK_KEY = 'pcf_seek';
-      const loadSeek = () => { try { return JSON.parse(localStorage.getItem(SEEK_KEY)||'[]'); } catch { return []; } };
-      const saveSeek = (arr) => localStorage.setItem(SEEK_KEY, JSON.stringify(arr));
-
-      /* ======== Estado ======== */
-      const resultsEl = document.getElementById('results');
-      const drawer = document.getElementById('drawer');
-      const drawerBackdrop = document.getElementById('drawer-backdrop');
-      const seekEl = document.getElementById('seek-list');
-      const badge = document.getElementById('badge-count');
-
-      let seekList = loadSeek();
-      window.__pcf_cache__ = {};
-
-      /* ======== Helpers ======== */
+      // ===== helpers =====
       const $ = s => document.querySelector(s);
       const escapeHtml = s => (s+'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+      async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
-      function updateBadge(){
-        if(seekList.length>0){ badge.textContent = String(seekList.length); badge.classList.remove('hidden'); }
-        else { badge.classList.add('hidden'); }
+      // ===== lista de procura (localStorage) =====
+      const KEY = 'pcf_seek';
+      let seekList = JSON.parse(localStorage.getItem(KEY) || '[]');
+      const seekEl = $('#seek-list'); const badge = $('#badge-count');
+      function saveSeek() { localStorage.setItem(KEY, JSON.stringify(seekList)); }
+      function findById(list,id){ return list.find(x=>x.id===id); }
+      function updateBadge(){ if(seekList.length){badge.textContent=String(seekList.length);badge.classList.remove('hidden');}else{badge.classList.add('hidden');} }
+      function itemMiniHtml(c){ return `
+        <div class="flex items-center gap-3 p-2 rounded-md bg-white/5">
+          <img src="${c.images?.small}" class="mini-img" alt="${escapeHtml(c.name)}"/>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-sm">${escapeHtml(c.name)}</div>
+            <div class="text-xs text-gray-300">#${c.number}/${c.set.printedTotal ?? c.set.total} · ${escapeHtml(c.set.name)}</div>
+          </div>
+          <button data-remove="${c.id}" class="px-2 py-1 rounded bg-red-500 text-xs">Rem</button>
+        </div>`; }
+      function renderSeek(){
+        seekEl.innerHTML = seekList.length ? seekList.map(itemMiniHtml).join('') : '<div class="text-gray-400">Sem itens</div>';
+        document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{
+          const id=b.dataset.remove; seekList=seekList.filter(x=>x.id!==id); saveSeek(); renderSeek(); updateBadge(); refreshVisibleGridButtons();
+        }));
+        updateBadge();
       }
-      const findById = (list,id) => list.find(x=>x.id===id);
 
-      // Monta link da LigaPokémon (busca por nome + número + set)
-      function buildLigaLink(c){
-        // Formato: Nome (Número/Total)
-        const label = `${c.name} (${c.number}/${c.set?.printedTotal ?? c.set?.total})`;
-        const base = 'https://www.ligapokemon.com.br/';
-        const params = new URLSearchParams({ view: 'cards/search', card: label });
-        return `${base}?${params.toString()}`;
-      }
+      // ===== drawer =====
+      const drawer = $('#drawer'); const backdrop = $('#drawer-backdrop');
+      $('#open-drawer').addEventListener('click',()=>{ drawer.classList.remove('hidden','drawer-exit','drawer-exit-active'); drawer.classList.add('drawer-enter'); requestAnimationFrame(()=>drawer.classList.add('drawer-enter-active')); backdrop.classList.remove('hidden'); });
+      function closeDrawer(){ drawer.classList.remove('drawer-enter','drawer-enter-active'); drawer.classList.add('drawer-exit'); requestAnimationFrame(()=>{ drawer.classList.add('drawer-exit-active'); setTimeout(()=>{ drawer.classList.add('hidden'); drawer.classList.remove('drawer-exit','drawer-exit-active'); }, 250); }); backdrop.classList.add('hidden'); }
+      $('#close-drawer').addEventListener('click', closeDrawer); backdrop.addEventListener('click', closeDrawer);
+      $('#clear-seek').addEventListener('click',()=>{ if(!confirm('Limpar Lista de Procura?')) return; seekList=[]; saveSeek(); renderSeek(); });
+      $('#export-seek').addEventListener('click',()=>{ const blob=new Blob([JSON.stringify({seek:seekList},null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='pcf-seek.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); });
+      $('#import-file').addEventListener('change', async ev=>{ const f=ev.target.files?.[0]; if(!f)return; try{ const txt=await f.text(); const j=JSON.parse(txt); if(Array.isArray(j.seek)) seekList=j.seek; saveSeek(); renderSeek(); alert('Import concluído'); }catch(e){ alert('Erro ao importar: '+e.message); } finally{ ev.target.value=null; } });
 
+      // ===== resultados/grid =====
+      const resultsEl = $('#results'); window.__pcf_cache__ = {};
+      function buildLigaLink(c){ const label = `${c.name} (${c.number}/${c.set?.printedTotal ?? c.set?.total})`; const p = new URLSearchParams({ view: 'cards/search', card: label }); return `https://www.ligapokemon.com.br/?${p.toString()}`; }
+      function closeAllPriceMenus(){ document.querySelectorAll('.menu').forEach(m=>m.classList.add('hidden')); }
+      function openPriceMenu(buttonEl){ closeAllPriceMenus(); const menu=buttonEl.parentElement.querySelector('.menu'); if(menu) menu.classList.toggle('hidden'); }
       function cardHtml(c){
-        window.__pcf_cache__[c.id] = c;
-        const isSeek = !!findById(seekList, c.id);
-        const hasTcg = !!c.tcgplayer;
-
+        window.__pcf_cache__[c.id]=c; const isSeek=!!findById(seekList,c.id); const hasTcg=!!c.tcgplayer;
         return `
           <article class="bg-white/6 rounded-2xl p-4 shadow-lg hover:scale-[1.02] transform transition">
             <img src="${c.images?.large}" alt="${escapeHtml(c.name)}" class="w-full rounded-xl mb-3 card-img"/>
@@ -135,193 +217,173 @@
             <p class="text-sm text-gray-300 mb-3">#${c.number}/${c.set.printedTotal ?? c.set.total} — ${escapeHtml(c.set.name)}</p>
             <div class="flex gap-2 items-start">
               <button data-seek="${c.id}" class="px-3 py-2 rounded-lg ${isSeek?'bg-yellow-400 text-black':'bg-white/10'} hover:bg-white/20">
-                ${isSeek ? '📌 Na Procura' : '📌 Procurar'}
+                ${isSeek ? 'Na lista' : 'Listar'}
               </button>
               <button data-det="${c.id}" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20">Detalhes</button>
-
-              <!-- Botão + menu de preço -->
               <div class="menu-btn">
                 <button data-price="${c.id}" class="px-3 py-2 rounded-lg bg-green-500 text-black hover:bg-green-400">Preço ▾</button>
                 <div class="menu hidden bg-neutral-900 border border-white/10 rounded-lg mt-1 shadow-xl">
                   <a ${hasTcg?`href="${c.tcgplayer}" target="_blank"`:`aria-disabled="true"`}
                      class="block px-3 py-2 hover:bg-white/10 ${hasTcg?'':'opacity-40 cursor-not-allowed'}">TCGplayer</a>
-                  <a href="${buildLigaLink(c)}" target="_blank"
-                     class="block px-3 py-2 hover:bg-white/10">LigaPokémon (BR)</a>
+                  <a href="${buildLigaLink(c)}" target="_blank" class="block px-3 py-2 hover:bg-white/10">LigaPokémon (BR)</a>
                 </div>
               </div>
             </div>
-          </article>
-        `;
+          </article>`;
       }
-
       function renderGrid(cards){
-        if(!cards?.length){
-          resultsEl.innerHTML = `<div class="col-span-full text-center text-gray-300">Nenhum resultado</div>`;
-          return;
-        }
+        if(!cards?.length){ resultsEl.innerHTML = `<div class="col-span-full text-center text-gray-300">Nenhum resultado</div>`; return; }
         resultsEl.innerHTML = cards.map(cardHtml).join('');
-
-        // Procurar toggle
-        document.querySelectorAll('[data-seek]').forEach(b=>{
-          b.addEventListener('click',()=>{
-            const id=b.dataset.seek;
-            toggleSeek(window.__pcf_cache__[id]);
-          });
-        });
-
-        // Detalhes modal
-        document.querySelectorAll('[data-det]').forEach(b=>{
-          b.addEventListener('click',()=>{
-            const id=b.dataset.det;
-            openDetails(window.__pcf_cache__[id]);
-          });
-        });
-
-        // Menu de preço
-        document.querySelectorAll('[data-price]').forEach(b=>{
-          b.addEventListener('click', (e)=>{
-            e.stopPropagation();
-            const id=b.dataset.price;
-            openPriceMenu(b, window.__pcf_cache__[id]);
-          });
-        });
-
-        // Fecha menus ao clicar fora
+        document.querySelectorAll('[data-seek]').forEach(b=>b.addEventListener('click',()=>{ const id=b.dataset.seek; const card=window.__pcf_cache__[id]; if(findById(seekList,card.id)){ seekList=seekList.filter(x=>x.id!==card.id);} else { seekList=[card, ...seekList]; } saveSeek(); renderSeek(); refreshVisibleGridButtons(); }));
+        document.querySelectorAll('[data-det]').forEach(b=>b.addEventListener('click',()=> openDetails(window.__pcf_cache__[b.dataset.det]) ));
+        document.querySelectorAll('[data-price]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); openPriceMenu(b); }));
         document.addEventListener('click', closeAllPriceMenus, { once:true });
       }
+      function refreshVisibleGridButtons(){ const cards = Array.from(document.querySelectorAll('[data-seek]')).map(b=>window.__pcf_cache__[b.dataset.seek]).filter(Boolean); if(cards.length) renderGrid(cards); }
 
-      function closeAllPriceMenus(){
-        document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
-      }
-      function openPriceMenu(buttonEl, card){
-        closeAllPriceMenus();
-        const menu = buttonEl.parentElement.querySelector('.menu');
-        if(menu) menu.classList.toggle('hidden');
-      }
-
-      function itemMiniHtml(c){
-        return `
-          <div class="flex items-center gap-3 p-2 rounded-md bg-white/5">
-            <img src="${c.images?.small}" class="mini-img" alt="${escapeHtml(c.name)}"/>
-            <div class="flex-1 min-w-0">
-              <div class="font-medium text-sm">${escapeHtml(c.name)}</div>
-              <div class="text-xs text-gray-300">#${c.number}/${c.set.printedTotal ?? c.set.total} · ${escapeHtml(c.set.name)}</div>
-            </div>
-            <button data-remove="${c.id}" class="px-2 py-1 rounded bg-red-500 text-xs">Rem</button>
-          </div>
-        `;
-      }
-
-      function renderSeek(){
-        seekEl.innerHTML = seekList.length ? seekList.map(itemMiniHtml).join('') : '<div class="text-gray-400">Sem itens</div>';
-        document.querySelectorAll('[data-remove]').forEach(b=>{
-          b.addEventListener('click',()=>{
-            const id=b.dataset.remove;
-            seekList = seekList.filter(x=>x.id!==id);
-            saveSeek(seekList); renderSeek(); updateBadge(); refreshVisibleGridButtons();
-          });
-        });
-        updateBadge();
-      }
-
-      function toggleSeek(c){
-        if(findById(seekList,c.id)){
-          seekList = seekList.filter(x=>x.id!==c.id);
-        } else {
-          seekList.unshift(c);
-        }
-        saveSeek(seekList);
-        renderSeek();
-        refreshVisibleGridButtons();
-      }
-
-      function refreshVisibleGridButtons(){
-        const cards = Array.from(document.querySelectorAll('[data-seek]')).map(b=>window.__pcf_cache__[b.dataset.seek]).filter(Boolean);
-        if(cards.length) renderGrid(cards);
-      }
-
-      /* ======== Drawer ======== */
-      function openDrawer(){ drawer.classList.remove('hidden','drawer-exit','drawer-exit-active'); drawer.classList.add('drawer-enter'); requestAnimationFrame(()=>drawer.classList.add('drawer-enter-active')); drawerBackdrop.classList.remove('hidden'); }
-      function closeDrawer(){ drawer.classList.remove('drawer-enter','drawer-enter-active'); drawer.classList.add('drawer-exit'); requestAnimationFrame(()=>{ drawer.classList.add('drawer-exit-active'); setTimeout(()=>{ drawer.classList.add('hidden'); drawer.classList.remove('drawer-exit','drawer-exit-active'); }, 250); }); drawerBackdrop.classList.add('hidden'); }
-      document.getElementById('open-drawer').addEventListener('click',openDrawer);
-      document.getElementById('close-drawer').addEventListener('click',closeDrawer);
-      drawerBackdrop.addEventListener('click',closeDrawer);
-
-      document.getElementById('clear-seek').addEventListener('click',()=>{
-        if(!confirm('Limpar Lista de Procura?'))return;
-        seekList=[]; saveSeek(seekList); renderSeek(); updateBadge();
-      });
-      document.getElementById('export-seek').addEventListener('click',()=>{
-        const blob = new Blob([JSON.stringify({seek:seekList},null,2)],{type:'application/json'});
-        const url=URL.createObjectURL(blob); const a=document.createElement('a');
-        a.href=url; a.download='pcf-seek.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
-      });
-      document.getElementById('import-file').addEventListener('change', async ev=>{
-        const f=ev.target.files?.[0]; if(!f)return;
-        try{
-          const txt=await f.text(); const j=JSON.parse(txt);
-          if(Array.isArray(j.seek)) seekList=j.seek;
-          saveSeek(seekList); renderSeek(); updateBadge(); alert('Import concluído');
-        }catch(e){ alert('Erro ao importar: '+e.message); }
-        finally{ ev.target.value=null; }
-      });
-
-      /* ======== Modal de Detalhes ======== */
-      const modal = document.getElementById('modal');
-      const modalBackdrop = document.getElementById('modal-backdrop');
-      const modalTitle = document.getElementById('modal-title');
-      const modalBody = document.getElementById('modal-body');
+      // ===== modal detalhes =====
+      const modal=$('#modal'), modalBackdrop=$('#modal-backdrop'), modalTitle=$('#modal-title'), modalBody=$('#modal-body');
       function openDetails(c){
         modalTitle.textContent = c.name;
         const flavor = c.flavorText ? `<p class="text-sm text-gray-300 italic leading-relaxed">“${escapeHtml(c.flavorText)}”</p>` : '';
-        const metaLeft = `<img src="${c.images?.large}" alt="${escapeHtml(c.name)}" class="w-full rounded-xl card-img"/>`;
-        const metaRight = `
-          <ul class="text-sm text-gray-200 space-y-1">
-            <li><b>Número:</b> ${c.number}/${c.set.printedTotal ?? c.set.total}</li>
-            <li><b>Set:</b> ${escapeHtml(c.set.name)} (${escapeHtml(c.set.series || '')})</li>
-            ${c.rarity ? `<li><b>Raridade:</b> ${escapeHtml(c.rarity)}</li>` : ''}
-            ${c.artist ? `<li><b>Artista:</b> ${escapeHtml(c.artist)}</li>` : ''}
-            ${c.types?.length ? `<li><b>Tipos:</b> ${c.types.join(', ')}</li>` : ''}
-            ${c.subtypes?.length ? `<li><b>Subtipos:</b> ${c.subtypes.join(', ')}</li>` : ''}
-            ${c.nationalPokedexNumbers?.length ? `<li><b>Dex#:</b> ${c.nationalPokedexNumbers.join(', ')}</li>` : ''}
-            ${c.set.releaseDate ? `<li><b>Release:</b> ${escapeHtml(c.set.releaseDate)}</li>` : ''}
-            <li class="mt-2">
-              <span class="text-gray-300 mr-2">Preços:</span>
-              <a ${c.tcgplayer?`href="${c.tcgplayer}" target="_blank"`:`aria-disabled="true" class="opacity-40 cursor-not-allowed"`}
-                 class="underline">TCGplayer</a>
-              <span class="mx-1">·</span>
-              <a href="${buildLigaLink(c)}" target="_blank" class="underline">LigaPokémon</a>
-            </li>
-          </ul>
-          ${flavor}
-        `;
-        modalBody.innerHTML = `<div>${metaLeft}</div><div class="space-y-3">${metaRight}</div>`;
+        modalBody.innerHTML = `
+          <div><img src="${c.images?.large}" alt="${escapeHtml(c.name)}" class="w-full rounded-xl card-img"/></div>
+          <div class="space-y-3">
+            <ul class="text-sm text-gray-200 space-y-1">
+              <li><b>Número:</b> ${c.number}/${c.set.printedTotal ?? c.set.total}</li>
+              <li><b>Set:</b> ${escapeHtml(c.set.name)} (${escapeHtml(c.set.series || '')})</li>
+              ${c.rarity ? `<li><b>Raridade:</b> ${escapeHtml(c.rarity)}</li>` : ''}
+              ${c.artist ? `<li><b>Artista:</b> ${escapeHtml(c.artist)}</li>` : ''}
+              ${c.types?.length ? `<li><b>Tipos:</b> ${c.types.join(', ')}</li>` : ''}
+              ${c.subtypes?.length ? `<li><b>Subtipos:</b> ${c.subtypes.join(', ')}</li>` : ''}
+              ${c.nationalPokedexNumbers?.length ? `<li><b>Dex#:</b> ${c.nationalPokedexNumbers.join(', ')}</li>` : ''}
+              ${c.set.releaseDate ? `<li><b>Release:</b> ${escapeHtml(c.set.releaseDate)}</li>` : ''}
+              <li class="mt-2"><span class="text-gray-300 mr-2">Preços:</span>
+                <a ${c.tcgplayer?`href="${c.tcgplayer}" target="_blank"`:`aria-disabled="true" class="opacity-40 cursor-not-allowed"`}
+                   class="underline">TCGplayer</a>
+                <span class="mx-1">·</span>
+                <a href="${buildLigaLink(c)}" target="_blank" class="underline">LigaPokémon</a>
+              </li>
+            </ul>
+            ${flavor}
+          </div>`;
         modal.classList.remove('hidden'); modalBackdrop.classList.remove('hidden');
       }
       function closeDetails(){ modal.classList.add('hidden'); modalBackdrop.classList.add('hidden'); }
-      document.getElementById('modal-close').addEventListener('click',closeDetails);
-      modalBackdrop.addEventListener('click',closeDetails);
+      $('#modal-close').addEventListener('click', closeDetails); modalBackdrop.addEventListener('click', closeDetails);
 
-      /* ======== Busca ======== */
-      document.getElementById('btn').addEventListener('click', async ()=>{
-        const fraction = document.getElementById('inp').value.trim();
+      // ===== tabs =====
+      const tabFraction = document.getElementById('tab-fraction');
+      const tabSet      = document.getElementById('tab-set');
+      const viewFraction = document.getElementById('view-fraction');
+      const viewSet      = document.getElementById('view-set');
+
+      function activate(tab) {
+        const isFraction = tab === 'fraction';
+        viewFraction.classList.toggle('hidden', !isFraction);
+        viewSet.classList.toggle('hidden', isFraction);
+
+        tabFraction.setAttribute('aria-selected', String(isFraction));
+        tabSet.setAttribute('aria-selected', String(!isFraction));
+      }
+
+      tabFraction.addEventListener('click', () => activate('fraction'));
+      tabSet.addEventListener('click',      () => activate('set'));
+
+      // estado inicial
+      activate('fraction');
+
+      // ===== busca por Número/Total =====
+      $('#btn').addEventListener('click', async ()=>{
+        const fraction = $('#inp').value.trim();
         if(!fraction.includes('/')) { alert('Formato inválido (use NNN/TTT)'); return; }
         resultsEl.innerHTML = `<div class="col-span-full text-center animate-pulse">🔎 Buscando...</div>`;
-        try{
-          const res = await fetch(`/api/card?fraction=${encodeURIComponent(fraction)}`);
-          if(!res.ok){
-            const err = await res.json().catch(()=>({error:res.statusText}));
-            resultsEl.innerHTML = `<div class="col-span-full text-center text-red-400">Erro: ${err.error || res.statusText}</div>`;
-            return;
-          }
-          const json = await res.json();
+        try{ const json = await getJSON(`/api/card?fraction=${encodeURIComponent(fraction)}`); renderGrid(json.data || []); }
+        catch(e){ resultsEl.innerHTML = `<div class="col-span-full text-center text-red-400">Erro: ${e.message}</div>`; }
+      });
+
+      // ===== busca por Coleção + filtros =====
+      const RARITIES = [
+        'Common','Uncommon','Rare','Rare Holo','Ultra Rare','Secret Rare','Rare Holo EX','Rare Holo GX','Rare Holo V','Amazing Rare','Trainer Gallery','Promo'
+      ];
+      const setQ = $('#set-q'), setsOut = $('#sets-out'), pickedBox = $('#set-picked'), pickedInfo = $('#set-picked-info');
+      const rarityBox = $('#rarity-box'), btnPrev = $('#page-prev'), btnNext = $('#page-next'), pageInfo = $('#page-info'), btnReload = $('#reload-cards'), btnClearPicked = $('#clear-picked');
+
+      let pickedSet = null;
+      let currentPage = 1;
+      let lastTotalCount = 0;
+
+      function renderRarityFilters() {
+        rarityBox.innerHTML = RARITIES.map(r => `
+          <label class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 cursor-pointer">
+            <input type="checkbox" value="${r}" class="rarity-check accent-yellow-400">
+            <span class="text-sm">${r}</span>
+          </label>
+        `).join('');
+      }
+      function getSelectedRarities() {
+        return Array.from(document.querySelectorAll('.rarity-check:checked')).map(i => i.value);
+      }
+      function setPickedUI() {
+        if (!pickedSet) { pickedBox.classList.add('hidden'); return; }
+        pickedBox.classList.remove('hidden');
+        pickedInfo.innerHTML = `
+          <div><b>${escapeHtml(pickedSet.name)}</b> — ${escapeHtml(pickedSet.series || '')}
+          <span class="text-gray-400 ml-2">(${pickedSet.printedTotal || pickedSet.total} cartas · ${pickedSet.releaseDate || ''})</span></div>
+        `;
+      }
+
+      async function loadCardsBySet(page = 1) {
+        if (!pickedSet) return;
+        currentPage = page;
+        const rarities = getSelectedRarities().join(',');
+        resultsEl.innerHTML = `<div class="col-span-full text-center animate-pulse">🧩 Carregando cartas...</div>`;
+        try {
+          const q = new URLSearchParams({ setId: pickedSet.id, page: String(currentPage), pageSize: '60' });
+          if (rarities) q.set('rarities', rarities);
+          const json = await getJSON(`/api/cardsBySet?${q.toString()}`);
+          lastTotalCount = json.totalCount || (json.data?.length || 0);
           renderGrid(json.data || []);
-        }catch(e){
+          const totalPages = Math.max(1, Math.ceil(lastTotalCount / (json.pageSize || 60)));
+          pageInfo.textContent = `Página ${currentPage} / ${totalPages}`;
+          btnPrev.disabled = currentPage <= 1;
+          btnNext.disabled = currentPage >= totalPages;
+        } catch (e) {
           resultsEl.innerHTML = `<div class="col-span-full text-center text-red-400">Erro: ${e.message}</div>`;
+        }
+      }
+
+      $('#set-search').addEventListener('click', async ()=>{
+        const q = setQ.value.trim(); if(!q){ alert('Digite o nome da coleção'); return; }
+        setsOut.innerHTML = `<div class="col-span-full text-center animate-pulse">🔎 Buscando coleções...</div>`;
+        try {
+          const json = await getJSON(`/api/sets?q=${encodeURIComponent(q)}`);
+          if (!json.data?.length) { setsOut.innerHTML = `<div class="col-span-full text-center text-gray-300">Nenhuma coleção encontrada.</div>`; return; }
+          setsOut.innerHTML = json.data.map(s => `
+            <button data-pick="${s.id}" class="text-left bg-white/6 hover:bg-white/10 border border-white/10 rounded-xl p-3">
+              <div class="font-semibold">${escapeHtml(s.name)}</div>
+              <div class="text-sm text-gray-300">${escapeHtml(s.series || '')}</div>
+              <div class="text-xs text-gray-400">Total: ${s.printedTotal || s.total} · ${s.releaseDate || ''}</div>
+            </button>
+          `).join('');
+          document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', ()=>{
+            pickedSet = json.data.find(x => x.id === b.dataset.pick);
+            setPickedUI();
+            renderRarityFilters();
+            loadCardsBySet(1);
+          }));
+        } catch (e) {
+          setsOut.innerHTML = `<div class="col-span-full text-center text-red-400">Erro: ${e.message}</div>`;
         }
       });
 
-      /* ======== Init ======== */
+      // listeners dos filtros/paginação
+      btnPrev.addEventListener('click', ()=> loadCardsBySet(Math.max(1, currentPage-1)));
+      btnNext.addEventListener('click', ()=> loadCardsBySet(currentPage+1));
+      btnReload.addEventListener('click', ()=> loadCardsBySet(currentPage));
+      btnClearPicked.addEventListener('click', ()=>{ pickedSet = null; setPickedUI(); resultsEl.innerHTML=''; });
+
+      // init
       renderSeek(); updateBadge();
     </script>
   </body>
